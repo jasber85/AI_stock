@@ -7,10 +7,9 @@ from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 
-# ==========================================
+
 # 1. 多變量資料準備 (加入成交量與 5日均線)
-# ==========================================
-print("正在載入多變量資料...")
+print("正在載入資料...")
 df = yf.download('2330.TW', start='2021-01-01', end='2026-06-25')
 
 # 計算 5 日移動平均線 (MA5)
@@ -29,9 +28,8 @@ training_data_len = int(np.ceil(len(dataset) * 0.8))
 scaler = MinMaxScaler(feature_range=(0, 1))
 scaled_data = scaler.fit_transform(dataset)
 
-# ==========================================
+
 # 2. 建立 3D 時間窗口 (特徵數量 = 3)
-# ==========================================
 time_step = 60
 feature_count = len(features) # 3
 
@@ -56,9 +54,8 @@ x_test = np.array(x_test)
 
 print(f"訓練集形狀 (樣本數, 時間步長, 特徵數): {x_train.shape}") # 應該是 (N, 60, 3)
 
-# ==========================================
+
 # 3. 升級 LSTM 模型架構
-# ==========================================
 model = Sequential([
     # input_shape 調整為 (60, 3)
     LSTM(units=64, return_sequences=True, input_shape=(x_train.shape[1], feature_count)),
@@ -72,9 +69,8 @@ model = Sequential([
 model.compile(optimizer='adam', loss='mean_squared_error')
 model.fit(x_train, y_train, batch_size=32, epochs=15, verbose=1)
 
-# ==========================================
-# 4. 預測與多變量反歸一化 (核心難點)
-# ==========================================
+
+# 4. 預測與多變量反歸一化
 predictions = model.predict(x_test)
 
 # 因為 scaler 當初是吃 3 個欄位，反轉換時也必須給它 3 個欄位
@@ -83,9 +79,8 @@ prediction_copies = np.repeat(predictions, feature_count, axis=-1)
 # 透過 inverse_transform 還原，再取出第一欄 (收盤價)
 predictions_inverse = scaler.inverse_transform(prediction_copies)[:, 0]
 
-# ==========================================
+
 # 5. 科學數據評估
-# ==========================================
 rmse = np.sqrt(mean_squared_error(y_test, predictions_inverse))
 mape = mean_absolute_percentage_error(y_test, predictions_inverse)
 
@@ -93,9 +88,8 @@ print("\n====== 模型定量評估 ======")
 print(f"均方根誤差 (RMSE): {rmse:.2f} TWD (平均預測誤差幾元)")
 print(f"平均絕對百分比誤差 (MAPE): {mape * 100:.2f} %")
 
-# ==========================================
+
 # 6. 繪圖
-# ==========================================
 valid_plot = df[['Close']].iloc[training_data_len:].copy()
 valid_plot['Predictions'] = predictions_inverse
 
